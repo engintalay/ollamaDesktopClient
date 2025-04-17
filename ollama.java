@@ -71,34 +71,8 @@ public class ollama {
                 if (!question.isEmpty()) {
                     System.out.println("\n****************Başlandı****************\n"); // Print "Başlandı" to console
                     evalDurationLabel.setText("Evaluation Duration: Çalışılıyor"); // Set label to "Çalışılıyor"
-                    String response = sendQuestionToServer(question, debugArea, evalDurationLabel);
-                    StringBuilder formattedResponse = new StringBuilder();
-
-                    String[] responseLines = response.split("\n");
-                    for (String line : responseLines) {
-                        try {
-                            JSONObject jsonLine = new JSONObject(line);
-                            if (jsonLine.has("total_duration")) {
-                                // Handle total_duration as an integer and format it to seconds
-                                int durationNanoseconds = jsonLine.getInt("total_duration");
-                                double durationSeconds = durationNanoseconds / 1_000_000_000.0; // Convert to seconds
-                                String formattedDuration = String.format("%.2f seconds", durationSeconds); // Format to 2 decimal places
-                                evalDurationLabel.setText("Evaluation Duration: " + formattedDuration); // Update the label with the formatted duration
-                            } else if (jsonLine.has("error")) {
-                                String error = jsonLine.getString("error"); // Extract the "error" value
-                                evalDurationLabel.setText("Error: " + error); // Update the label with the error message    
-                            }
-                            if (jsonLine.has("response")) {
-                                String temp = jsonLine.getString("response");
-                                formattedResponse.append(temp); // Add line breaks for plain text
-                            }
-                        } catch (Exception ex) {
-                            formattedResponse.append(line.trim()).append("\n"); // Append as-is if not valid JSON
-                        }
-                    }
-
-                    responsePane.setText(formattedResponse.toString()); // Set plain text content
-                    System.out.println("\n****************Bitti****************\n"); // Print "Bitti" to console
+                    responsePane.setText(""); // Clear the responsePane before starting
+                    new Thread(() -> sendQuestionToServer(question, debugArea, evalDurationLabel, responsePane)).start(); // Run in a separate thread
                 } else {
                     JOptionPane.showMessageDialog(frame, "Lütfen bir soru girin!", "Hata", JOptionPane.ERROR_MESSAGE);
                 }
@@ -114,7 +88,7 @@ public class ollama {
         frame.setVisible(true);
     }
 
-    private static String sendQuestionToServer(String question, JTextArea debugArea, JLabel evalDurationLabel) {
+    private static String sendQuestionToServer(String question, JTextArea debugArea, JLabel evalDurationLabel, JTextArea responsePane) {
         try {
             URL url = new URL(SERVER_URL);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -125,7 +99,7 @@ public class ollama {
 
             // JSON formatında soru ve model gönder
             String jsonInput = "{\"prompt\": \"" + question + "\", \"model\": \"gemma3:4b\", \"stream\": true}";
-            String jsonInputCurl = "{\\\"prompt\\\": \\\"" + question + "\\\", \\\"model\\\": \\\"gemma3:4b\\\"}";
+            String jsonInputCurl = "{\\\"prompt\\\": \\\"" + question + "\\\", \\\"stream\\\": true, \\\"model\\\": \\\"gemma3:4b\\\"}";
             String curlCommand = "curl -X POST " + SERVER_URL + " -H \"Content-Type: application/json\" -d \"" + jsonInputCurl + "\"";
             System.out.println(curlCommand); // Print the curl command for debugging
             debugArea.setText(curlCommand); // Debug alanına curl komutunu yaz
@@ -139,21 +113,30 @@ public class ollama {
             int status = connection.getResponseCode();
             if (status == 200) {
                 try (BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
-                    StringBuilder responseBuilder = new StringBuilder();
                     String responseLine;
-
                     while ((responseLine = br.readLine()) != null) {
-                        responseBuilder.append(responseLine);
+
+                            JSONObject jsonLine = new JSONObject(responseLine);
+                            if (jsonLine.has("total_duration")) {
+                                // Handle total_duration as an integer and format it to seconds
+                                int durationNanoseconds = jsonLine.getInt("total_duration");
+                                double durationSeconds = durationNanoseconds / 1_000_000_000.0; // Convert to seconds
+                                String formattedDuration = String.format("%.2f seconds", durationSeconds); // Format to 2 decimal places
+                                evalDurationLabel.setText("Evaluation Duration: " + formattedDuration); // Update the label with the formatted duration
+                            } else if (jsonLine.has("error")) {
+                                String error = jsonLine.getString("error"); // Extract the "error" value
+                                evalDurationLabel.setText("Error: " + error); // Update the label with the error message    
+                            }
+                            if (jsonLine.has("response")) {
+                                String temp = jsonLine.getString("response");
+                                //formattedResponse.append(temp); // Add line breaks for plain text
+                                responsePane.append(temp ); // Append each line to the responsePane
+                            }
+                       
+                        responsePane.setCaretPosition(responsePane.getDocument().getLength()); // Auto-scroll to the bottom
                     }
-
-                    // Insert \n between JSON objects
-                    String rawResponse = responseBuilder.toString();
-                    String formattedResponse = rawResponse.replace("}{", "}\n{");
-
-                    // Update evalDurationLabel (if applicable)
-                    evalDurationLabel.setText("Evaluation Duration: N/A");
-                    //System.out.println("Response: " + formattedResponse); // Print the raw response for debugging   
-                    return formattedResponse;
+                    evalDurationLabel.setText("Evaluation Duration: Tamamlandı");
+                    return "Tamamlandı";
                 }
             } else if (status == 404) {
                 return "Sunucu bulunamadı. Lütfen sunucu adresini kontrol edin: " + SERVER_URL;
