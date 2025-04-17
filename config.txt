@@ -1,3 +1,3 @@
 http://localhost:11434/api/generate
 http://192.168.1.250:11434/api/generate
-http://aiapi.engintalay.com.tr/api/generate
+

@@ -256,6 +256,8 @@ public class ollama {
                 return "Sunucudan geçerli bir cevap alınamadı. Kod: " + status;
             }
         } catch (Exception ex) {
+            ex.printStackTrace();
+            System.err.println("Hata: " + ex.getMessage());
             return "Hata: " + ex.getMessage();
         }
     }
