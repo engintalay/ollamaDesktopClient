@@ -11,6 +11,7 @@ import org.json.JSONObject; // Add this import for JSON parsing
 
 public class ollama {
     private static final String SERVER_URL = "http://localhost:11434/api/generate";
+    //private static final String SERVER_URL = "http://192.168.1.250:11434/api/generate";
 
     public static void main(String[] args) {
         // Frame oluştur
@@ -123,6 +124,9 @@ public class ollama {
                                 double durationSeconds = durationNanoseconds / 1_000_000_000.0; // Convert to seconds
                                 String formattedDuration = String.format("%.2f seconds", durationSeconds); // Format to 2 decimal places
                                 evalDurationLabel.setText("Evaluation Duration: " + formattedDuration); // Update the label with the formatted duration
+                                for (String key : jsonLine.keySet()) {
+                                    System.out.println(key + ": " + jsonLine.get(key));
+                                }
                             } else if (jsonLine.has("error")) {
                                 String error = jsonLine.getString("error"); // Extract the "error" value
                                 evalDurationLabel.setText("Error: " + error); // Update the label with the error message    
@@ -135,7 +139,9 @@ public class ollama {
                        
                         responsePane.setCaretPosition(responsePane.getDocument().getLength()); // Auto-scroll to the bottom
                     }
-                    evalDurationLabel.setText("Evaluation Duration: Tamamlandı");
+                    //evalDurationLabel.setText("Evaluation Duration: Tamamlandı");
+                    System.out.println("\n****************Bitti****************\n"); // Print "Başlandı" to console
+
                     return "Tamamlandı";
                 }
             } else if (status == 404) {
