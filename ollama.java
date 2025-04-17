@@ -249,8 +249,10 @@ public class ollama {
                     return "Tamamlandı";
                 }
             } else if (status == 404) {
+                System.err.println("Sunucu bulunamadı. Lütfen sunucu adresini kontrol edin: " + defaultServerUrl);
                 return "Sunucu bulunamadı. Lütfen sunucu adresini kontrol edin: " + defaultServerUrl;
             } else {
+                System.err.println("Sunucudan geçerli bir cevap alınamadı. Kod: " + status);
                 return "Sunucudan geçerli bir cevap alınamadı. Kod: " + status;
             }
         } catch (Exception ex) {
