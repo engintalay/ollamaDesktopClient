@@ -20,6 +20,9 @@ public class ollama {
     private static final String SERVER_URL = "http://localhost:11434/api/generate";
     private static final String CONFIG_FILE = "config.txt";
 
+    // Declare serverUrlComboBox as a class-level variable
+    private static JComboBox<String> serverUrlComboBox;
+
     private static List<String> loadServerUrls() {
         List<String> urls = new ArrayList<>();
         File configFile = new File(CONFIG_FILE);
@@ -57,7 +60,7 @@ public class ollama {
         // Frame oluştur
         JFrame frame = new JFrame("Soru-Cevap Uygulaması");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(1024, 1024); // Set frame size to 800x600
+        frame.setSize(1280, 900); // Set frame size to 800x600
 
         // Panel ve bileşenler
         JPanel panel = new JPanel();
@@ -73,9 +76,14 @@ public class ollama {
             String newUrl = serverUrlField.getText().trim();
             if (!newUrl.isEmpty()) {
                 List<String> urls = loadServerUrls();
-                urls.add(newUrl);
-                saveServerUrls(urls);
-                JOptionPane.showMessageDialog(frame, "Sunucu URL'si kaydedildi!", "Bilgi", JOptionPane.INFORMATION_MESSAGE);
+                if (!urls.contains(newUrl)) { // Ensure uniqueness
+                    urls.add(newUrl);
+                    saveServerUrls(urls);
+                    serverUrlComboBox.addItem(newUrl); // Add to combo box
+                    JOptionPane.showMessageDialog(frame, "Sunucu URL'si kaydedildi!", "Bilgi", JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(frame, "Bu URL zaten mevcut!", "Hata", JOptionPane.ERROR_MESSAGE);
+                }
             } else {
                 JOptionPane.showMessageDialog(frame, "URL boş olamaz!", "Hata", JOptionPane.ERROR_MESSAGE);
             }
@@ -88,7 +96,7 @@ public class ollama {
 
         // Add a combo box for selecting server URLs
         List<String> serverUrls = loadServerUrls();
-        JComboBox<String> serverUrlComboBox = new JComboBox<>(serverUrls.toArray(new String[0]));
+        serverUrlComboBox = new JComboBox<>(serverUrls.toArray(new String[0]));
         serverUrlComboBox.setSelectedItem(serverUrl);
         serverUrlComboBox.addActionListener(e -> {
             String selectedUrl = (String) serverUrlComboBox.getSelectedItem();
@@ -181,7 +189,8 @@ public class ollama {
 
     private static String sendQuestionToServer(String question, JTextArea debugArea, JLabel evalDurationLabel, JTextArea responsePane) {
         try {
-            URL url = new URL(SERVER_URL);
+            String defaultServerUrl = (String) serverUrlComboBox.getSelectedItem();
+            URL url = new URL(defaultServerUrl); // Use the selected server URL
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "application/json");
@@ -191,7 +200,7 @@ public class ollama {
             // JSON formatında soru ve model gönder
             String jsonInput = "{\"prompt\": \"" + question + "\", \"model\": \"gemma3:4b\", \"stream\": true}";
             String jsonInputCurl = "{\\\"prompt\\\": \\\"" + question + "\\\", \\\"stream\\\": true, \\\"model\\\": \\\"gemma3:4b\\\"}";
-            String curlCommand = "curl -X POST " + SERVER_URL + " -H \"Content-Type: application/json\" -d \"" + jsonInputCurl + "\"";
+            String curlCommand = "curl -X POST " + defaultServerUrl + " -H \"Content-Type: application/json\" -d \"" + jsonInputCurl + "\"";
             System.out.println(curlCommand); // Print the curl command for debugging
             debugArea.setText(curlCommand); // Debug alanına curl komutunu yaz
 
@@ -240,7 +249,7 @@ public class ollama {
                     return "Tamamlandı";
                 }
             } else if (status == 404) {
-                return "Sunucu bulunamadı. Lütfen sunucu adresini kontrol edin: " + SERVER_URL;
+                return "Sunucu bulunamadı. Lütfen sunucu adresini kontrol edin: " + defaultServerUrl;
             } else {
                 return "Sunucudan geçerli bir cevap alınamadı. Kod: " + status;
             }
