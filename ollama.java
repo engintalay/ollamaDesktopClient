@@ -10,6 +10,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -18,30 +20,39 @@ public class ollama {
     private static final String SERVER_URL = "http://localhost:11434/api/generate";
     private static final String CONFIG_FILE = "config.txt";
 
-    private static String loadServerUrl() {
+    private static List<String> loadServerUrls() {
+        List<String> urls = new ArrayList<>();
         File configFile = new File(CONFIG_FILE);
         if (configFile.exists()) {
             try (Scanner scanner = new Scanner(configFile)) {
-                if (scanner.hasNextLine()) {
-                    return scanner.nextLine().trim();
+                while (scanner.hasNextLine()) {
+                    String url = scanner.nextLine().trim();
+                    if (!url.isEmpty()) {
+                        urls.add(url);
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        return SERVER_URL; // Default value
+        if (urls.isEmpty()) {
+            urls.add(SERVER_URL); // Add default URL if none exist
+        }
+        return urls;
     }
 
-    private static void saveServerUrl(String serverUrl) {
+    private static void saveServerUrls(List<String> urls) {
         try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
-            writer.write(serverUrl);
+            for (String url : urls) {
+                writer.write(url + System.lineSeparator());
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public static void main(String[] args) {
-        String serverUrl = loadServerUrl();
+        String serverUrl = loadServerUrls().get(0);
 
         // Frame oluştur
         JFrame frame = new JFrame("Soru-Cevap Uygulaması");
@@ -61,7 +72,9 @@ public class ollama {
         saveUrlButton.addActionListener(e -> {
             String newUrl = serverUrlField.getText().trim();
             if (!newUrl.isEmpty()) {
-                saveServerUrl(newUrl);
+                List<String> urls = loadServerUrls();
+                urls.add(newUrl);
+                saveServerUrls(urls);
                 JOptionPane.showMessageDialog(frame, "Sunucu URL'si kaydedildi!", "Bilgi", JOptionPane.INFORMATION_MESSAGE);
             } else {
                 JOptionPane.showMessageDialog(frame, "URL boş olamaz!", "Hata", JOptionPane.ERROR_MESSAGE);
@@ -72,6 +85,33 @@ public class ollama {
         urlPanel.add(new JLabel("Sunucu URL'si:"), BorderLayout.WEST);
         urlPanel.add(serverUrlField, BorderLayout.CENTER);
         urlPanel.add(saveUrlButton, BorderLayout.EAST);
+
+        // Add a combo box for selecting server URLs
+        List<String> serverUrls = loadServerUrls();
+        JComboBox<String> serverUrlComboBox = new JComboBox<>(serverUrls.toArray(new String[0]));
+        serverUrlComboBox.setSelectedItem(serverUrl);
+        serverUrlComboBox.addActionListener(e -> {
+            String selectedUrl = (String) serverUrlComboBox.getSelectedItem();
+            if (selectedUrl != null) {
+                serverUrlField.setText(selectedUrl);
+            }
+        });
+
+        JButton removeUrlButton = new JButton("URL'yi Sil");
+        removeUrlButton.addActionListener(e -> {
+            String selectedUrl = (String) serverUrlComboBox.getSelectedItem();
+            if (selectedUrl != null) {
+                serverUrls.remove(selectedUrl);
+                saveServerUrls(serverUrls);
+                serverUrlComboBox.removeItem(selectedUrl);
+                JOptionPane.showMessageDialog(frame, "Sunucu URL'si silindi!", "Bilgi", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(frame, "Silinecek bir URL seçin!", "Hata", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        urlPanel.add(serverUrlComboBox, BorderLayout.NORTH);
+        urlPanel.add(removeUrlButton, BorderLayout.SOUTH);
 
         JButton sendButton = new JButton("Soruyu Gönder"); // Move this declaration above key binding setup
         sendButton.setPreferredSize(new Dimension(150, 30)); // Set button size explicitly
