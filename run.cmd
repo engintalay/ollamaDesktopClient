@@ -1,5 +1,4 @@
+javac -encoding UTF-8 -cp .;json-20250107.jar;gson-2.8.9.jar ollama.java
+mkdir temp && cd temp && jar xf ../gson-2.8.9.jar && jar xf ../json-20250107.jar && jar xf ../ollama.jar && jar cfe ../ollama-fat.jar ollama * && cd .. && rmdir /s /q temp
 del *.class
-javac -encoding UTF-8 -cp .;json-20250107.jar ollama.java
-jar cfe ollama.jar ollama *.class json-20250107.jar
-del *.class
-java -jar ollama.jar
+java -jar ollama-fat.jar

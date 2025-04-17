@@ -3,17 +3,46 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import org.json.JSONObject; // Add this import for JSON parsing
+import java.util.Scanner;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class ollama {
     private static final String SERVER_URL = "http://localhost:11434/api/generate";
-    //private static final String SERVER_URL = "http://192.168.1.250:11434/api/generate";
+    private static final String CONFIG_FILE = "config.txt";
+
+    private static String loadServerUrl() {
+        File configFile = new File(CONFIG_FILE);
+        if (configFile.exists()) {
+            try (Scanner scanner = new Scanner(configFile)) {
+                if (scanner.hasNextLine()) {
+                    return scanner.nextLine().trim();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return SERVER_URL; // Default value
+    }
+
+    private static void saveServerUrl(String serverUrl) {
+        try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
+            writer.write(serverUrl);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void main(String[] args) {
+        String serverUrl = loadServerUrl();
+
         // Frame oluştur
         JFrame frame = new JFrame("Soru-Cevap Uygulaması");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -26,6 +55,23 @@ public class ollama {
         JTextArea questionArea = new JTextArea(20, 40);
         questionArea.setLineWrap(true);
         questionArea.setWrapStyleWord(true);
+
+        JTextField serverUrlField = new JTextField(serverUrl, 40);
+        JButton saveUrlButton = new JButton("URL'yi Kaydet");
+        saveUrlButton.addActionListener(e -> {
+            String newUrl = serverUrlField.getText().trim();
+            if (!newUrl.isEmpty()) {
+                saveServerUrl(newUrl);
+                JOptionPane.showMessageDialog(frame, "Sunucu URL'si kaydedildi!", "Bilgi", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(frame, "URL boş olamaz!", "Hata", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        JPanel urlPanel = new JPanel(new BorderLayout(5, 5));
+        urlPanel.add(new JLabel("Sunucu URL'si:"), BorderLayout.WEST);
+        urlPanel.add(serverUrlField, BorderLayout.CENTER);
+        urlPanel.add(saveUrlButton, BorderLayout.EAST);
 
         JButton sendButton = new JButton("Soruyu Gönder"); // Move this declaration above key binding setup
         sendButton.setPreferredSize(new Dimension(150, 30)); // Set button size explicitly
@@ -80,9 +126,13 @@ public class ollama {
             }
         });
 
+        // Panel düzenini güncelle
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, questionScroll, responseScroll);
+        splitPane.setResizeWeight(0.5); // Üst ve alt bölmelerin boyutlarını ayarla
+
         // Bileşenleri ekle
-        panel.add(questionScroll, BorderLayout.NORTH);
-        panel.add(responseScroll, BorderLayout.CENTER); // Move responseScroll to the center
+        panel.add(urlPanel, BorderLayout.NORTH); // Add URL panel at the top
+        panel.add(splitPane, BorderLayout.CENTER); // Add split pane to the center
         panel.add(buttonPanel, BorderLayout.SOUTH); // Place button panel at the bottom
 
         frame.add(panel);
@@ -116,40 +166,35 @@ public class ollama {
                 try (BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
                     String responseLine;
                     while ((responseLine = br.readLine()) != null) {
-
-                            JSONObject jsonLine = new JSONObject(responseLine);
-                            if (jsonLine.has("total_duration")) {
-                                // Handle total_duration as an integer and format it to seconds
-                                long durationNanoseconds = jsonLine.getLong("total_duration");
-                                double durationSeconds = durationNanoseconds / 1_000_000_000.0; // Convert to seconds
-                                String formattedDuration = String.format("%.2f seconds", durationSeconds); // Format to 2 decimal places
-                                evalDurationLabel.setText("Evaluation Duration: " + formattedDuration); // Update the label with the formatted duration
-                                for (String key : jsonLine.keySet()) {
-                                    if (key.equals("context")) {
-                                        continue;
-                                    }
-                                    if ( key.equals("prompt_eval_duration") || key.equals("load_duration") || key.equals("total_duration") || key.equals("eval_duration") ) {
-                                        long nanoSec = jsonLine.getLong(key);
-                                        double durSec = nanoSec / 1_000_000_000.0; // Convert to seconds
-                                        String durStr = String.format("%.2f seconds", durSec);
-                                        System.out.println(key + ": " + durStr); // Print the formatted duration
-                                    } else {
-                                        System.out.println(key + ": " + jsonLine.get(key));
-                                    }  
+                        JsonObject jsonLine = JsonParser.parseString(responseLine).getAsJsonObject();
+                        if (jsonLine.has("total_duration")) {
+                            long durationNanoseconds = jsonLine.get("total_duration").getAsLong(); // Corrected method
+                            double durationSeconds = durationNanoseconds / 1_000_000_000.0; // Convert to seconds
+                            String formattedDuration = String.format("%.2f seconds", durationSeconds); // Format to 2 decimal places
+                            evalDurationLabel.setText("Evaluation Duration: " + formattedDuration); // Update the label with the formatted duration
+                            for (String key : jsonLine.keySet()) {
+                                if (key.equals("context")) {
+                                    continue;
                                 }
-                            } else if (jsonLine.has("error")) {
-                                String error = jsonLine.getString("error"); // Extract the "error" value
-                                evalDurationLabel.setText("Error: " + error); // Update the label with the error message    
+                                if ( key.equals("prompt_eval_duration") || key.equals("load_duration") || key.equals("total_duration") || key.equals("eval_duration") ) {
+                                    long nanoSec = jsonLine.get(key).getAsLong(); // Corrected method
+                                    double durSec = nanoSec / 1_000_000_000.0; // Convert to seconds
+                                    String durStr = String.format("%.2f seconds", durSec);
+                                    System.out.println(key + ": " + durStr); // Print the formatted duration
+                                } else {
+                                    System.out.println(key + ": " + jsonLine.get(key));
+                                }  
                             }
-                            if (jsonLine.has("response")) {
-                                String temp = jsonLine.getString("response");
-                                //formattedResponse.append(temp); // Add line breaks for plain text
-                                responsePane.append(temp ); // Append each line to the responsePane
-                            }
-                       
-                        responsePane.setCaretPosition(responsePane.getDocument().getLength()); // Auto-scroll to the bottom
+                        } else if (jsonLine.has("error")) {
+                            String error = jsonLine.get("error").getAsString();
+                            evalDurationLabel.setText("Error: " + error);
+                        }
+                        if (jsonLine.has("response")) {
+                            String temp = jsonLine.get("response").getAsString();
+                            responsePane.append(temp);
+                        }
+                        responsePane.setCaretPosition(responsePane.getDocument().getLength());
                     }
-                    //evalDurationLabel.setText("Evaluation Duration: Tamamlandı");
                     System.out.println("\n****************Bitti****************\n"); // Print "Başlandı" to console
 
                     return "Tamamlandı";
