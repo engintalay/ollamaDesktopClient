@@ -26,6 +26,9 @@ public class ollama {
         questionArea.setLineWrap(true);
         questionArea.setWrapStyleWord(true);
 
+        JButton sendButton = new JButton("Soruyu Gönder"); // Move this declaration above key binding setup
+        sendButton.setPreferredSize(new Dimension(150, 30)); // Set button size explicitly
+
         // Add key binding for Ctrl + Enter to send the question
         questionArea.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ctrl ENTER"), "sendQuestion");
         questionArea.getActionMap().put("sendQuestion", new AbstractAction() {
@@ -35,14 +38,13 @@ public class ollama {
             }
         });
 
-        JButton sendButton = new JButton("Soruyu Gönder");
-        sendButton.setPreferredSize(new Dimension(150, 30)); // Set button size explicitly
-        JPanel buttonPanel = new JPanel(); // Add a separate panel for the button
-        buttonPanel.add(sendButton);
+        JPanel buttonPanel = new JPanel(new GridLayout(3, 1, 5, 5)); // Adjust layout to fit three buttons
+        buttonPanel.add(sendButton); // Add the send button
 
-        JTextPane responsePane = new JTextPane(); // Use JTextPane for formatted display
+        JTextArea responsePane = new JTextArea(); // Change JTextPane to JTextArea for plain text
         responsePane.setEditable(false);
-        responsePane.setContentType("text/html"); // Set content type to HTML for formatting
+        responsePane.setLineWrap(true); // Enable line wrapping
+        responsePane.setWrapStyleWord(true); // Wrap at word boundaries
         JScrollPane responseScroll = new JScrollPane(responsePane);
 
         JTextArea debugArea = new JTextArea(5, 40);
@@ -54,6 +56,12 @@ public class ollama {
         JScrollPane questionScroll = new JScrollPane(questionArea);
 
         JLabel evalDurationLabel = new JLabel("Evaluation Duration: N/A");
+        buttonPanel.add(evalDurationLabel); // Add the duration label
+
+        JButton exitButton = new JButton("Çıkış"); // Create an Exit button
+        exitButton.setPreferredSize(new Dimension(150, 30)); // Set button size explicitly
+        exitButton.addActionListener(e -> System.exit(0)); // Add action listener to exit the application
+        buttonPanel.add(exitButton); // Add the exit button
 
         // Düğme tıklama olayı
         sendButton.addActionListener(new ActionListener() {
@@ -61,8 +69,10 @@ public class ollama {
             public void actionPerformed(ActionEvent e) {
                 String question = questionArea.getText().trim();
                 if (!question.isEmpty()) {
+                    System.out.println("\n****************Başlandı****************\n"); // Print "Başlandı" to console
+                    evalDurationLabel.setText("Evaluation Duration: Çalışılıyor"); // Set label to "Çalışılıyor"
                     String response = sendQuestionToServer(question, debugArea, evalDurationLabel);
-                    StringBuilder formattedResponse = new StringBuilder("<html><body style='font-family: Arial; font-size: 12px;'>");
+                    StringBuilder formattedResponse = new StringBuilder();
 
                     String[] responseLines = response.split("\n");
                     for (String line : responseLines) {
@@ -80,15 +90,15 @@ public class ollama {
                             }
                             if (jsonLine.has("response")) {
                                 String temp = jsonLine.getString("response");
-                                formattedResponse.append(temp).append("<br>"); // Add line breaks for HTML
+                                formattedResponse.append(temp); // Add line breaks for plain text
                             }
                         } catch (Exception ex) {
-                            formattedResponse.append(line.trim()).append("<br>"); // Append as-is if not valid JSON
+                            formattedResponse.append(line.trim()).append("\n"); // Append as-is if not valid JSON
                         }
                     }
 
-                    formattedResponse.append("</body></html>");
-                    responsePane.setText(formattedResponse.toString()); // Set formatted HTML content
+                    responsePane.setText(formattedResponse.toString()); // Set plain text content
+                    System.out.println("\n****************Bitti****************\n"); // Print "Bitti" to console
                 } else {
                     JOptionPane.showMessageDialog(frame, "Lütfen bir soru girin!", "Hata", JOptionPane.ERROR_MESSAGE);
                 }
@@ -97,11 +107,8 @@ public class ollama {
 
         // Bileşenleri ekle
         panel.add(questionScroll, BorderLayout.NORTH);
-        panel.add(buttonPanel, BorderLayout.CENTER); // Add button panel to the center
-        panel.add(responseScroll, BorderLayout.SOUTH);
-        JPanel debugPanel = new JPanel(new BorderLayout());
-        debugPanel.add(evalDurationLabel, BorderLayout.SOUTH);
-        panel.add(debugPanel, BorderLayout.EAST);
+        panel.add(responseScroll, BorderLayout.CENTER); // Move responseScroll to the center
+        panel.add(buttonPanel, BorderLayout.SOUTH); // Place button panel at the bottom
 
         frame.add(panel);
         frame.setVisible(true);
@@ -117,7 +124,7 @@ public class ollama {
             connection.setDoOutput(true);
 
             // JSON formatında soru ve model gönder
-            String jsonInput = "{\"prompt\": \"" + question + "\", \"model\": \"gemma3:4b\"}";
+            String jsonInput = "{\"prompt\": \"" + question + "\", \"model\": \"gemma3:4b\", \"stream\": true}";
             String jsonInputCurl = "{\\\"prompt\\\": \\\"" + question + "\\\", \\\"model\\\": \\\"gemma3:4b\\\"}";
             String curlCommand = "curl -X POST " + SERVER_URL + " -H \"Content-Type: application/json\" -d \"" + jsonInputCurl + "\"";
             System.out.println(curlCommand); // Print the curl command for debugging
