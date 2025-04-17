@@ -68,7 +68,7 @@ public class ollama {
         sendButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String question = questionArea.getText().trim();
+                String question = questionArea.getText().trim().replaceAll("\\r?\\n", " "); // Remove all line breaks
                 if (!question.isEmpty()) {
                     System.out.println("\n****************Başlandı****************\n"); // Print "Başlandı" to console
                     evalDurationLabel.setText("Evaluation Duration: Çalışılıyor"); // Set label to "Çalışılıyor"
@@ -120,12 +120,22 @@ public class ollama {
                             JSONObject jsonLine = new JSONObject(responseLine);
                             if (jsonLine.has("total_duration")) {
                                 // Handle total_duration as an integer and format it to seconds
-                                int durationNanoseconds = jsonLine.getInt("total_duration");
+                                long durationNanoseconds = jsonLine.getLong("total_duration");
                                 double durationSeconds = durationNanoseconds / 1_000_000_000.0; // Convert to seconds
                                 String formattedDuration = String.format("%.2f seconds", durationSeconds); // Format to 2 decimal places
                                 evalDurationLabel.setText("Evaluation Duration: " + formattedDuration); // Update the label with the formatted duration
                                 for (String key : jsonLine.keySet()) {
-                                    System.out.println(key + ": " + jsonLine.get(key));
+                                    if (key.equals("context")) {
+                                        continue;
+                                    }
+                                    if ( key.equals("prompt_eval_duration") || key.equals("load_duration") || key.equals("total_duration") || key.equals("eval_duration") ) {
+                                        long nanoSec = jsonLine.getLong(key);
+                                        double durSec = nanoSec / 1_000_000_000.0; // Convert to seconds
+                                        String durStr = String.format("%.2f seconds", durSec);
+                                        System.out.println(key + ": " + durStr); // Print the formatted duration
+                                    } else {
+                                        System.out.println(key + ": " + jsonLine.get(key));
+                                    }  
                                 }
                             } else if (jsonLine.has("error")) {
                                 String error = jsonLine.getString("error"); // Extract the "error" value
