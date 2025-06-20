@@ -6,6 +6,9 @@ Ollama Desktop Client, Ollama sunucusuna bağlanarak masaüstünden kolayca sohb
 - Sunucu adreslerini ekleme, silme ve seçme
 - Sunucudan kurulu modelleri otomatik olarak çekip seçebilme
 - Chat geçmişini hatırlama ve sohbeti sıfırlama ("Yeni Sohbet")
+- Chat ekranında Kullanıcı ve Asistan başlıkları farklı renklerde gösterilir
+- Model listesini güncellemek için "Modelleri Güncelle" butonu
+- Mesaj gönderildikten sonra soru alanı otomatik temizlenir
 - Model ve sunucu değişiminde otomatik güncelleme
 - JSON tabanlı API ile hızlı ve kolay bağlantı
 - Türkçe arayüz
@@ -40,7 +43,10 @@ java -cp .;json-20250107.jar;gson-2.8.9.jar -jar ollama.jar
 ## Kullanım
 - Uygulama açıldığında sunucu adresi ve model seçebilirsiniz.
 - "Soruyu Gönder" ile mesajınızı iletebilir, "Yeni Sohbet" ile geçmişi temizleyebilirsiniz.
+- "Modelleri Güncelle" butonu ile model listesini güncelleyebilirsiniz.
+- Mesaj gönderdikten sonra soru alanı otomatik temizlenir.
 - Sunucuya yeni adres ekleyebilir veya mevcut adresleri silebilirsiniz.
+- Sohbet ekranında Kullanıcı ve Asistan başlıkları farklı renklerde gösterilir.
 
 ## Lisans
 MIT

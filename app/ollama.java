@@ -192,10 +192,9 @@ public class ollama {
         JPanel buttonPanel = new JPanel(new GridLayout(3, 1, 5, 5)); // Adjust layout to fit three buttons
         buttonPanel.add(sendButton); // Add the send button
 
-        JTextArea responsePane = new JTextArea();
+        JTextPane responsePane = new JTextPane();
         responsePane.setEditable(false);
-        responsePane.setLineWrap(true);
-        responsePane.setWrapStyleWord(true);
+        responsePane.setContentType("text/plain");
         JScrollPane responseScroll = new JScrollPane(responsePane);
 
         JTextArea debugArea = new JTextArea(5, 40);
@@ -222,6 +221,18 @@ public class ollama {
         });
         buttonPanel.add(newChatButton);
 
+        // Modelleri güncellemek için buton
+        JButton refreshModelsButton = new JButton("Modelleri Güncelle");
+        refreshModelsButton.setPreferredSize(new Dimension(150, 30));
+        refreshModelsButton.addActionListener(e -> {
+            String selectedUrl = (String) serverUrlComboBox.getSelectedItem();
+            List<String> newModels = fetchModels(selectedUrl);
+            modelComboBox.removeAllItems();
+            for (String m : newModels) modelComboBox.addItem(m);
+            modelComboBox.setSelectedIndex(0);
+        });
+        buttonPanel.add(refreshModelsButton);
+
         // Düğme tıklama olayı
         sendButton.addActionListener(new ActionListener() {
             @Override
@@ -230,8 +241,8 @@ public class ollama {
                 String selectedModel = (String) modelComboBox.getSelectedItem();
                 if (!question.isEmpty()) {
                     chatHistory.add(new String[]{"user", question});
-                    updateChatPane(responsePane);
-                    responsePane.append("\nYanıt bekleniyor...\n");
+                    updateChatPane(responsePane, true); // Yanıt bekleniyor mesajı ile
+                    questionArea.setText(""); // Soru alanını temizle
                     System.out.println("\n****************Başlandı****************\n");
                     evalDurationLabel.setText("Evaluation Duration: Çalışılıyor");
                     new Thread(() -> sendQuestionToServerWithHistory(question, selectedModel, debugArea, evalDurationLabel, responsePane)).start();
@@ -255,7 +266,7 @@ public class ollama {
     }
 
     // Soru gönderirken model parametresi de alınacak
-    private static String sendQuestionToServer(String question, String model, JTextArea debugArea, JLabel evalDurationLabel, JTextArea responsePane) {
+    private static String sendQuestionToServer(String question, String model, JTextArea debugArea, JLabel evalDurationLabel, JTextPane responsePane) {
         try {
             String defaultServerUrl = (String) serverUrlComboBox.getSelectedItem();
             URL url = new URL(defaultServerUrl);
@@ -305,7 +316,7 @@ public class ollama {
                         }
                         if (jsonLine.has("response")) {
                             String temp = jsonLine.get("response").getAsString();
-                            responsePane.append(temp);
+                           // responsePane.append(temp);
                         }
                         responsePane.setCaretPosition(responsePane.getDocument().getLength());
                     }
@@ -327,20 +338,40 @@ public class ollama {
         }
     }
 
-    // Chat geçmişini ekrana yazan fonksiyon
-    private static void updateChatPane(JTextArea responsePane) {
-        StringBuilder sb = new StringBuilder();
-        for (String[] msg : chatHistory) {
-            if (msg[0].equals("user")) sb.append("Kullanıcı: ");
-            else sb.append("Asistan: ");
-            sb.append(msg[1]).append("\n");
+    // Chat geçmişini ekrana yazan fonksiyon (renkli başlıklar için)
+    private static void updateChatPane(JTextPane responsePane) {
+        updateChatPane(responsePane, false);
+    }
+    private static void updateChatPane(JTextPane responsePane, boolean waiting) {
+        try {
+            javax.swing.text.StyledDocument doc = responsePane.getStyledDocument();
+            doc.remove(0, doc.getLength());
+            javax.swing.text.Style userStyle = responsePane.addStyle("user", null);
+            javax.swing.text.StyleConstants.setForeground(userStyle, Color.BLUE);
+            javax.swing.text.Style assistantStyle = responsePane.addStyle("assistant", null);
+            javax.swing.text.StyleConstants.setForeground(assistantStyle, new Color(0, 128, 0));
+            javax.swing.text.Style normalStyle = responsePane.addStyle("normal", null);
+            javax.swing.text.StyleConstants.setForeground(normalStyle, Color.BLACK);
+            for (String[] msg : chatHistory) {
+                if (msg[0].equals("user")) {
+                    doc.insertString(doc.getLength(), "Kullanıcı: ", userStyle);
+                    doc.insertString(doc.getLength(), msg[1] + "\n", normalStyle);
+                } else {
+                    doc.insertString(doc.getLength(), "Asistan: ", assistantStyle);
+                    doc.insertString(doc.getLength(), msg[1] + "\n", normalStyle);
+                }
+            }
+            if (waiting) {
+                doc.insertString(doc.getLength(), "Yanıt bekleniyor...\n", normalStyle);
+            }
+            responsePane.setCaretPosition(doc.getLength());
+        } catch (Exception ex) {
+            responsePane.setText("Hata: " + ex.getMessage());
         }
-        responsePane.setText(sb.toString());
-        responsePane.setCaretPosition(responsePane.getDocument().getLength());
     }
 
     // Chat geçmişiyle birlikte sunucuya gönder
-    private static String sendQuestionToServerWithHistory(String question, String model, JTextArea debugArea, JLabel evalDurationLabel, JTextArea responsePane) {
+    private static String sendQuestionToServerWithHistory(String question, String model, JTextArea debugArea, JLabel evalDurationLabel, JTextPane responsePane) {
         try {
             String defaultServerUrl = (String) serverUrlComboBox.getSelectedItem();
             URL url = new URL(defaultServerUrl);

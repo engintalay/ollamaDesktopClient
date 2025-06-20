@@ -3,6 +3,9 @@ set JAVA_HOME=c:\Program Files\Java\jdk-21
 @chcp -q -- "%~dp0" "%~dpnx0" >nul 2>&1
 @chcp 65001 >nul 2>&1
 rmdir /s /q temp
+del app\*.class
+del ollama.jar
+del ollama-fat.jar
 "%JAVA_HOME%\bin\javac" -encoding UTF-8 -cp .;json-20250107.jar;gson-2.8.9.jar app\ollama.java
 "%JAVA_HOME%\bin\jar" --create --file=ollama.jar --main-class=app.ollama -C . app
 mkdir temp
